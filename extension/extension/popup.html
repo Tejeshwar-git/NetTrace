@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body {
+      width: 280px;
+      font-family: system-ui, -apple-system, sans-serif;
+      background: #0F172A;
+      color: #F8FAFC;
+      padding: 16px;
+      margin: 0;
+    }
+    .title {
+      font-weight: 800;
+      font-size: 14px;
+      color: #38BDF8;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 2px;
+    }
+    .sub { font-size: 10px; color: #94A3B8; margin-bottom: 12px; }
+    label { font-size: 10px; font-weight: 700; color: #CBD5E1; text-transform: uppercase; }
+    input {
+      width: 100%;
+      padding: 8px;
+      margin: 4px 0 12px 0;
+      box-sizing: border-box;
+      background: #1E293B;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      color: #FFF;
+      font-size: 12px;
+    }
+    button {
+      width: 100%;
+      padding: 9px;
+      border: none;
+      border-radius: 8px;
+      font-weight: 700;
+      font-size: 11px;
+      cursor: pointer;
+      margin-bottom: 8px;
+      transition: opacity 0.2s;
+    }
+    .btn-history { background: #2563EB; color: #FFF; }
+    .btn-email { background: #0D9488; color: #FFF; }
+    button:hover { opacity: 0.9; }
+    #status { font-size: 11px; margin-top: 6px; font-weight: 600; text-align: center; word-break: break-word; }
+  </style>
+</head>
+<body>
+  <div class="title">🛡️ DFIR Sentinel</div>
+  <div class="sub">Live Forensics & Threat Scanner</div>
+
+  <label>Target Case File</label>
+  <input type="text" id="caseIdInput" placeholder="CASE-2026-01" value="CASE-01-08">
+
+  <button id="scanBtn" class="btn-history">⚡ Scan & Stream History</button>
+  <button id="scanEmailBtn" class="btn-email">📧 Scan Opened Email</button>
+
+  <div id="status"></div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

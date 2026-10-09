@@ -1,0 +1,1103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NetTrace | Modular Forensic Workstation</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+    <style>
+        body { 
+            font-family: 'Plus Jakarta Sans', sans-serif; 
+            background-color: #EBF0F7; 
+            color: #1E293B;
+        }
+        .font-mono { font-family: 'JetBrains Mono', monospace; }
+        .hero-bg {
+            background: linear-gradient(135deg, rgba(15, 23, 42, 0.88) 0%, rgba(30, 41, 59, 0.92) 100%),
+                        url('https://images.unsplash.com/photo-1550751827-4bd374c3f58b?auto=format&fit=crop&w=1920&q=80');
+            background-size: cover;
+            background-position: center;
+        }
+        .sidebar-navy { background: #2B3A67; }
+        .card-shadow {
+            box-shadow: 0 10px 30px -5px rgba(43, 58, 103, 0.06), 0 4px 12px -2px rgba(43, 58, 103, 0.03);
+        }
+        .pill-shadow {
+            box-shadow: 0 4px 14px 0 rgba(255, 107, 80, 0.35);
+        }
+        .user-select-none { user-select: none; }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #F1F5F9; }
+        ::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94A3B8; }
+
+        /* Subtle darkening for selected row without visual clutter */
+        .row-selected {
+            background-color: #E2E8F0 !important;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-0 md:p-4">
+
+    <!-- 1. AUTHENTICATION VIEW -->
+    <div id="authView" class="fixed inset-0 flex items-center justify-center hero-bg p-4 z-50">
+        <div class="w-full max-w-md bg-white/95 backdrop-blur-md p-8 rounded-[32px] shadow-2xl border border-white/20">
+            <div class="text-center mb-6">
+                <div class="inline-flex p-3.5 rounded-2xl bg-indigo-50 text-[#FF6B50] text-3xl mb-3 shadow-inner">🛡️</div>
+                <h1 class="text-2xl font-extrabold text-[#2B3A67] tracking-tight">NetTrace</h1>
+                <p class="text-xs text-slate-500 mt-1">Digital Forensics & Incident Response Platform</p>
+            </div>
+
+            <div class="flex bg-slate-100 p-1.5 rounded-2xl mb-6">
+                <button id="tabLoginBtn" type="button" onclick="switchAuthTab('login')" class="flex-1 py-2 text-xs font-bold rounded-xl bg-white text-[#2B3A67] shadow-sm transition">Sign In</button>
+                <button id="tabRegBtn" type="button" onclick="switchAuthTab('reg')" class="flex-1 py-2 text-xs font-bold rounded-xl text-slate-500 hover:text-slate-700 transition">Register Officer</button>
+            </div>
+
+            <form id="loginForm" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Username</label>
+                    <input type="text" id="loginUser" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:border-[#4F46E5] transition" placeholder="admin" required>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Password</label>
+                    <input type="password" id="loginPass" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:border-[#4F46E5] transition" placeholder="••••••••" required>
+                </div>
+                <button type="submit" class="w-full py-3 bg-[#FF6B50] hover:bg-[#ff5738] text-white font-bold rounded-xl transition duration-150 pill-shadow">Authenticate Session</button>
+            </form>
+
+            <form id="regForm" class="space-y-3 hidden">
+                <div><label class="block text-xs font-bold text-slate-500 mb-1">Full Name</label><input type="text" id="regName" class="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm"></div>
+                <div><label class="block text-xs font-bold text-slate-500 mb-1">Badge ID</label><input type="text" id="regBadge" class="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm"></div>
+                <div><label class="block text-xs font-bold text-slate-500 mb-1">Department</label><select id="regDept" class="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm"><option>DFIR Unit</option><option>Cyber Crime Cell</option></select></div>
+                <div><label class="block text-xs font-bold text-slate-500 mb-1">Username</label><input type="text" id="regUser" class="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm"></div>
+                <div><label class="block text-xs font-bold text-slate-500 mb-1">Password</label><input type="password" id="regPass" class="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm"></div>
+                <button type="submit" class="w-full py-3 bg-[#FF6B50] hover:bg-[#ff5738] text-white font-bold rounded-xl transition duration-150 pill-shadow">Register Account</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- MAIN WORKSPACE CONTAINER -->
+    <div id="appView" class="hidden w-full max-w-[1440px] bg-white rounded-[32px] overflow-hidden card-shadow flex min-h-[880px]">
+        
+        <!-- SIDEBAR -->
+        <aside class="w-72 sidebar-navy text-slate-300 p-6 flex flex-col justify-between">
+            <div>
+                <div class="flex items-center space-x-3 mb-8">
+                    <div class="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center text-xl shadow-inner">🛡️</div>
+                    <div>
+                        <h2 class="text-base font-extrabold text-white tracking-wide">NetTrace</h2>
+                        <span class="text-[10px] text-slate-300 uppercase tracking-widest font-semibold">Triage Platform</span>
+                    </div>
+                </div>
+
+                <div class="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2 px-1">Investigation Scope</div>
+                
+                <div class="bg-white/10 p-3.5 rounded-2xl mb-6">
+                    <div class="flex justify-between items-center mb-1.5">
+                        <span class="text-[10px] font-bold text-slate-300 uppercase">Selected Case</span>
+                        <span class="text-[10px] font-bold text-[#FF6B50]">Active</span>
+                    </div>
+                    <select id="caseSelect" onchange="onCaseSelect()" class="w-full p-2.5 bg-[#1F2B4D] text-white rounded-xl border border-white/10 text-xs focus:outline-none"></select>
+                </div>
+
+                <div class="space-y-1.5">
+                    <button id="navModule1" type="button" onclick="switchModule(1)" class="w-full text-left px-3.5 py-3 rounded-xl bg-white/15 text-white font-bold text-xs flex items-center gap-3 shadow-sm transition">
+                        <span class="text-sm">📊</span> Overview Dashboard
+                    </button>
+                    <button id="navModule2" type="button" onclick="switchModule(2)" class="w-full text-left px-3.5 py-3 rounded-xl text-slate-300 hover:text-white hover:bg-white/5 font-semibold text-xs flex items-center gap-3 transition">
+                        <span class="text-sm">🔍</span> Evidence Ingestion
+                    </button>
+                    <button id="navModule3" type="button" onclick="switchModule(3)" class="w-full text-left px-3.5 py-3 rounded-xl text-slate-300 hover:text-white hover:bg-white/5 font-semibold text-xs flex items-center gap-3 transition">
+                        <span class="text-sm">📑</span> Audit Directory
+                    </button>
+                </div>
+            </div>
+
+            <div class="space-y-3">
+                <div class="bg-[#FF6B50] p-3.5 rounded-2xl text-white shadow-lg">
+                    <div class="text-[10px] uppercase font-extrabold tracking-wider opacity-80">Officer In-Charge</div>
+                    <div id="userFullName" class="font-extrabold text-sm mt-0.5 leading-snug"></div>
+                    <div id="userBadge" class="text-[11px] opacity-90"></div>
+                </div>
+                <button type="button" onclick="logout()" class="w-full py-2.5 bg-white/10 hover:bg-white/15 text-white rounded-xl text-xs font-bold transition">Sign Out</button>
+            </div>
+        </aside>
+
+        <!-- MAIN CONTENT CANVAS -->
+        <main class="flex-1 bg-[#F6F8FC] p-8 overflow-y-auto">
+            
+            <div class="flex justify-between items-center mb-6">
+                <div>
+                    <h1 id="moduleHeaderTitle" class="text-2xl font-black text-[#2B3A67] tracking-tight">Overview Dashboard</h1>
+                    <p id="moduleHeaderSub" class="text-xs text-slate-400 mt-0.5">Case overview metrics, active cases, and system records</p>
+                </div>
+                <div class="flex items-center space-x-3">
+                    <div class="px-3.5 py-1.5 bg-white rounded-full card-shadow text-xs font-bold text-slate-600 flex items-center gap-2">
+                        <span class="w-2.5 h-2.5 rounded-full bg-blue-500 animate-pulse"></span>
+                        NetTrace Active
+                    </div>
+                </div>
+            </div>
+
+            <!-- Global Minimal Metric Tiles -->
+            <div class="grid grid-cols-2 gap-4 mb-8 max-w-lg">
+                <div class="bg-white p-4 rounded-[22px] card-shadow flex items-center space-x-4">
+                    <div class="w-11 h-11 rounded-2xl bg-orange-50 text-[#FF6B50] flex items-center justify-center text-lg font-bold">📁</div>
+                    <div class="overflow-hidden">
+                        <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Active Case</div>
+                        <div id="kpiCase" class="text-sm font-black text-[#2B3A67] mt-0.5 truncate">Overview</div>
+                    </div>
+                </div>
+
+                <div class="bg-white p-4 rounded-[22px] card-shadow flex items-center space-x-4">
+                    <div class="w-11 h-11 rounded-2xl bg-indigo-50 text-[#4F46E5] flex items-center justify-center text-lg font-bold">📑</div>
+                    <div>
+                        <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Committed Records</div>
+                        <div id="kpiCount" class="text-sm font-black text-[#2B3A67] mt-0.5">0</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ================= MODULE 1: OVERVIEW DASHBOARD ================= -->
+            <div id="moduleView1" class="space-y-8">
+                <div class="bg-white p-7 rounded-[26px] card-shadow">
+                    <div class="flex items-center space-x-3 mb-4">
+                        <div class="w-9 h-9 rounded-xl bg-orange-50 text-[#FF6B50] flex items-center justify-center text-base font-bold">➕</div>
+                        <div>
+                            <h3 class="font-extrabold text-[#2B3A67] text-base">Case Initialization Station</h3>
+                            <p class="text-xs text-slate-400">Configure new forensic investigation files and assign investigator scope</p>
+                        </div>
+                    </div>
+                    
+                    <form id="createCaseInlineForm" class="grid grid-cols-3 gap-4 pt-2">
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">Case ID</label>
+                            <input type="text" id="inlineCaseId" placeholder="CASE-2026-09" class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-[#4F46E5]" required>
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">Investigation Title</label>
+                            <input type="text" id="inlineCaseTitle" placeholder="Corporate Phishing Incident" class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-[#4F46E5]" required>
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">Suspect / Target Subject</label>
+                            <input type="text" id="inlineCaseSuspect" placeholder="Target User Account" class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-[#4F46E5]">
+                        </div>
+                        <div class="col-span-2">
+                            <label class="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">Incident Description & Context</label>
+                            <input type="text" id="inlineCaseDesc" placeholder="Suspicious webmail link clicked; potential browser data exfiltration." class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-[#4F46E5]">
+                        </div>
+                        <div class="flex items-end">
+                            <button type="submit" class="w-full py-2.5 bg-[#FF6B50] hover:bg-[#ff5738] text-white rounded-xl font-bold text-xs pill-shadow transition">
+                                🚀 Initialize & Arm Case
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- ================= MODULE 2: EVIDENCE INGESTION ================= -->
+            <div id="moduleView2" class="hidden space-y-6">
+                <!-- Sub-Navigation Toggle -->
+                <div class="flex space-x-2 bg-slate-100 p-1.5 rounded-2xl w-fit">
+                    <button id="btnSubBrowser" type="button" onclick="switchIngestionTab('browser')" class="py-2 px-5 text-xs font-bold rounded-xl bg-white text-[#2B3A67] shadow-sm transition flex items-center gap-2">
+                        <span>🌐</span> Chromium Browser History
+                    </button>
+                    <button id="btnSubEmail" type="button" onclick="switchIngestionTab('email')" class="py-2 px-5 text-xs font-bold rounded-xl text-slate-500 hover:text-slate-700 transition flex items-center gap-2">
+                        <span>📧</span> Email Threat Scanner
+                    </button>
+                </div>
+
+                <!-- Dynamic Chain-of-Custody Verification Card -->
+                <div id="integrityVerificationCard" class="hidden bg-indigo-50/70 border border-indigo-100 p-6 rounded-[24px]">
+                    <div class="flex items-start justify-between">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-10 h-10 rounded-2xl bg-indigo-600 text-white flex items-center justify-center text-lg font-bold">🔒</div>
+                            <div>
+                                <div class="flex items-center space-x-2">
+                                    <h4 class="font-extrabold text-[#2B3A67] text-sm">Evidence Integrity Verified (Chain-of-Custody Established)</h4>
+                                    <span class="px-2 py-0.5 bg-emerald-100 text-emerald-700 font-extrabold text-[10px] rounded-md">ORIGINAL MASTER</span>
+                                </div>
+                                <p class="text-xs text-slate-500 mt-0.5">Cryptographic digital signature generated upon ingestion. Safe and tamper-proof.</p>
+                            </div>
+                        </div>
+                        <span id="integrityTimestamp" class="text-[11px] font-mono text-slate-400"></span>
+                    </div>
+
+                    <div class="mt-4 bg-white p-4 rounded-xl border border-indigo-100/60 space-y-2 text-xs">
+                        <div class="flex justify-between">
+                            <span class="font-bold text-slate-400">Analyzed File:</span>
+                            <span id="integrityFileName" class="font-bold text-slate-800"></span>
+                        </div>
+                        <div>
+                            <span class="font-bold text-slate-400 block mb-1">SHA-256 Digest:</span>
+                            <span id="integrityHash" class="font-mono text-[11px] text-indigo-700 bg-indigo-50 px-2.5 py-1 rounded-md block break-all"></span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SUB-TAB 1: BROWSER FORENSICS -->
+                <div id="subTabBrowser" class="space-y-6">
+                    <div class="bg-white p-7 rounded-[26px] card-shadow">
+                        <div class="flex items-center space-x-3 mb-2">
+                            <div class="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center text-sm font-bold">🌐</div>
+                            <div>
+                                <h3 class="font-extrabold text-[#2B3A67] text-sm">Chromium History Triage</h3>
+                                <p class="text-xs text-slate-400">Ingest SQLite browser database files directly for automated triage.</p>
+                            </div>
+                        </div>
+                        
+                        <div class="mt-4">
+                            <div class="relative flex items-center">
+                                <input type="file" id="browserFile" onchange="onFileSelected('browser')" class="block w-full text-xs text-slate-500 file:mr-3 file:py-2 file:px-3.5 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-slate-100 file:text-[#2B3A67] hover:file:bg-slate-200 border border-slate-200 rounded-2xl p-1 pr-20">
+                                <button type="button" id="removeBrowserFileBtn" onclick="clearFileSelection('browser')" class="hidden absolute right-3 px-2.5 py-1 text-[11px] font-bold text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 rounded-lg transition" title="Remove selected file">
+                                    ✕ Remove
+                                </button>
+                            </div>
+                            <button type="button" onclick="parseBrowser()" class="w-full mt-3 py-2.5 bg-[#2B3A67] hover:bg-[#202d52] text-white rounded-xl font-bold text-xs shadow-sm transition">
+                                Ingest & Analyze Database
+                            </button>
+                        </div>
+                    </div>
+
+                    <div id="liveExtensionContainer" class="hidden bg-white p-7 rounded-[26px] card-shadow">
+                        <h3 class="font-extrabold text-[#2B3A67] mb-4 flex items-center gap-2"><span>⚡</span> Browser History & URL Risk Breakdown</h3>
+                        <div id="browserResults"></div>
+                        <button type="button" onclick="commitEvidence('Browser Artifacts', currentBrowserScore)" class="w-full mt-4 py-2.5 bg-[#2B3A67] hover:bg-[#1F2B4D] text-white rounded-xl font-bold text-xs transition">💾 Commit Findings to Case Directory</button>
+                    </div>
+
+                    <div class="bg-white p-7 rounded-[26px] card-shadow">
+                        <div class="flex justify-between items-center mb-4">
+                            <div>
+                                <h3 class="font-extrabold text-[#2B3A67] text-sm">🌐 Browser URL Risk Distribution</h3>
+                                <p class="text-[11px] text-slate-400">Threat severity categorization across scanned history</p>
+                            </div>
+                            <span class="px-2.5 py-1 bg-indigo-50 text-[#4F46E5] rounded-full text-[10px] font-bold">Severity Ratio</span>
+                        </div>
+                        <div class="h-64 relative flex items-center justify-center">
+                            <canvas id="browserRiskChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SUB-TAB 2: EMAIL FORENSICS -->
+                <div id="subTabEmail" class="hidden space-y-6">
+                    <div class="bg-white p-7 rounded-[26px] card-shadow">
+                        <div class="flex items-center space-x-3 mb-2">
+                            <div class="w-9 h-9 rounded-xl bg-orange-50 text-[#FF6B50] flex items-center justify-center text-sm font-bold">📧</div>
+                            <div>
+                                <h3 class="font-extrabold text-[#2B3A67] text-sm">Email Threat Scanner</h3>
+                                <p class="text-xs text-slate-400">Ingest raw .EML records to evaluate phishing indicators and hyperlinks.</p>
+                            </div>
+                        </div>
+                        
+                        <div class="mt-4">
+                            <div class="relative flex items-center">
+                                <input type="file" id="emailFile" onchange="onFileSelected('email')" class="block w-full text-xs text-slate-500 file:mr-3 file:py-2 file:px-3.5 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-slate-100 file:text-[#2B3A67] hover:file:bg-slate-200 border border-slate-200 rounded-2xl p-1 pr-20">
+                                <button type="button" id="removeEmailFileBtn" onclick="clearFileSelection('email')" class="hidden absolute right-3 px-2.5 py-1 text-[11px] font-bold text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 rounded-lg transition" title="Remove selected file">
+                                    ✕ Remove
+                                </button>
+                            </div>
+                            <button type="button" onclick="parseEmail()" class="w-full mt-3 py-2.5 bg-[#2B3A67] hover:bg-[#202d52] text-white rounded-xl font-bold text-xs shadow-sm transition">
+                                Ingest & Scan Payload
+                            </button>
+                        </div>
+                    </div>
+
+                    <div id="emailResultsContainer" class="hidden bg-white p-7 rounded-[26px] card-shadow">
+                        <h3 class="font-extrabold text-[#2B3A67] mb-4 flex items-center gap-2"><span>📧</span> Email Threat Forensic Analysis</h3>
+                        <div id="emailBox"></div>
+                        <button type="button" onclick="commitEvidence('Email Artifact', currentEmailScore)" class="w-full mt-4 py-2.5 bg-[#2B3A67] hover:bg-[#1F2B4D] text-white rounded-xl font-bold text-xs transition">💾 Commit Findings to Case File</button>
+                    </div>
+
+                    <div class="bg-white p-7 rounded-[26px] card-shadow">
+                        <div class="flex justify-between items-center mb-4">
+                            <div>
+                                <h3 class="font-extrabold text-[#2B3A67] text-sm">📧 Email Phishing Vector Profile</h3>
+                                <p class="text-[11px] text-slate-400">Identified deceptive techniques & lure mechanics</p>
+                            </div>
+                            <span class="px-2.5 py-1 bg-rose-50 text-[#FF6B50] rounded-full text-[10px] font-bold">Threat Matrix</span>
+                        </div>
+                        <div class="h-64 relative">
+                            <canvas id="emailVectorChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ================= MODULE 3: AUDIT DIRECTORY ================= -->
+            <div id="moduleView3" class="hidden">
+                <div class="bg-white p-7 rounded-[26px] card-shadow">
+                    <div class="flex justify-between items-center mb-6">
+                        <div>
+                            <h3 class="font-extrabold text-[#2B3A67] text-base">Committed Evidence Audit Directory</h3>
+                            <p class="text-xs text-slate-400">Double-click a row to select, single-click to deselect, click outside to clear all</p>
+                        </div>
+                        <div class="flex items-center space-x-2.5">
+                            <button id="deleteSelectedBtn" type="button" onclick="deleteSelectedRows()" class="hidden py-2 px-3.5 bg-red-50 text-red-600 hover:bg-red-100 rounded-xl font-bold text-xs border border-red-200 transition">
+                                🗑️ Delete Selected
+                            </button>
+                            <button type="button" onclick="clearAuditLog()" class="py-2 px-3.5 bg-slate-100 text-slate-600 hover:bg-slate-200 rounded-xl font-bold text-xs border border-slate-200 transition">
+                                🧹 Clear All
+                            </button>
+                            <button type="button" onclick="downloadPDF()" class="py-2 px-4 bg-[#FF6B50] hover:bg-[#ff5738] text-white rounded-xl font-bold text-xs pill-shadow transition flex items-center gap-1.5">
+                                <span>📄</span> Export Official PDF Report
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="overflow-x-auto rounded-2xl border border-slate-100">
+                        <table class="w-full text-left text-xs text-slate-600">
+                            <thead class="bg-slate-50 text-slate-400 font-bold uppercase tracking-wider text-[10px]">
+                                <tr>
+                                    <th class="p-3.5">File Name</th>
+                                    <th class="p-3.5">Type</th>
+                                    <th class="p-3.5">SHA-256 Hash</th>
+                                    <th class="p-3.5">Threat Score</th>
+                                    <th class="p-3.5">Timestamp (UTC)</th>
+                                    <th class="p-3.5 text-right">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="auditTable" class="divide-y divide-slate-100 font-medium">
+                                <tr><td colspan="6" class="p-8 text-center text-slate-400">No evidence committed.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <!-- Evidence Inspection Modal -->
+    <div id="inspectModal" class="hidden fixed inset-0 bg-[#2B3A67]/40 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+        <div class="bg-white w-full max-w-3xl p-6 rounded-[28px] card-shadow max-h-[85vh] flex flex-col border border-slate-100">
+            <div class="flex justify-between items-center mb-4 border-b border-slate-100 pb-3">
+                <h3 class="font-extrabold text-[#2B3A67] text-sm flex items-center gap-2"><span>🔍</span> Evidence Inspection Record</h3>
+                <button type="button" onclick="toggleInspectModal(false)" class="text-slate-400 hover:text-slate-600 font-bold text-base transition">✕</button>
+            </div>
+            <div id="inspectContent" class="overflow-y-auto flex-1 space-y-3 text-xs pr-1"></div>
+        </div>
+    </div>
+
+    <script>
+        let currentUser = null;
+        let activeCase = null;
+        let currentEmailScore = 0.0;
+        let currentBrowserScore = 0.0;
+        let currentSha = '';
+        let currentFileName = '';
+        let currentDetailsJson = '';
+        let browserChartInstance = null;
+        let emailChartInstance = null;
+        let currentReportsList = [];
+        let selectedRecordHashes = new Set();
+
+        function switchModule(moduleNumber) {
+            const tabs = [document.getElementById('navModule1'), document.getElementById('navModule2'), document.getElementById('navModule3')];
+            const views = [document.getElementById('moduleView1'), document.getElementById('moduleView2'), document.getElementById('moduleView3')];
+            const titles = ['Overview Dashboard', 'Evidence Ingestion Hub', 'Audit Directory & Logs'];
+            const subs = [
+                'Case overview metrics, active cases, and system records',
+                'Live webmail scanning, Chrome history ingestion, and forensic analytics',
+                'Chain of custody audit records, granular inspector, and PDF report export'
+            ];
+
+            views.forEach((v, idx) => {
+                if (idx === (moduleNumber - 1)) {
+                    v.classList.remove('hidden');
+                    tabs[idx].className = "w-full text-left px-3.5 py-3 rounded-xl bg-white/15 text-white font-bold text-xs flex items-center gap-3 shadow-sm transition";
+                } else {
+                    v.classList.add('hidden');
+                    tabs[idx].className = "w-full text-left px-3.5 py-3 rounded-xl text-slate-300 hover:text-white hover:bg-white/5 font-semibold text-xs flex items-center gap-3 transition";
+                }
+            });
+
+            document.getElementById('moduleHeaderTitle').innerText = titles[moduleNumber - 1];
+            document.getElementById('moduleHeaderSub').innerText = subs[moduleNumber - 1];
+        }
+
+        function switchIngestionTab(type) {
+            const btnBrowser = document.getElementById('btnSubBrowser');
+            const btnEmail = document.getElementById('btnSubEmail');
+            const tabBrowser = document.getElementById('subTabBrowser');
+            const tabEmail = document.getElementById('subTabEmail');
+
+            if (type === 'browser') {
+                tabBrowser.classList.remove('hidden');
+                tabEmail.classList.add('hidden');
+                btnBrowser.className = "py-2 px-5 text-xs font-bold rounded-xl bg-white text-[#2B3A67] shadow-sm transition flex items-center gap-2";
+                btnEmail.className = "py-2 px-5 text-xs font-bold rounded-xl text-slate-500 hover:text-slate-700 transition flex items-center gap-2";
+            } else {
+                tabBrowser.classList.add('hidden');
+                tabEmail.classList.remove('hidden');
+                btnEmail.className = "py-2 px-5 text-xs font-bold rounded-xl bg-white text-[#2B3A67] shadow-sm transition flex items-center gap-2";
+                btnBrowser.className = "py-2 px-5 text-xs font-bold rounded-xl text-slate-500 hover:text-slate-700 transition flex items-center gap-2";
+            }
+        }
+
+        // File Selection Handlers
+        function onFileSelected(type) {
+            const input = document.getElementById(type === 'browser' ? 'browserFile' : 'emailFile');
+            const removeBtn = document.getElementById(type === 'browser' ? 'removeBrowserFileBtn' : 'removeEmailFileBtn');
+            
+            if (input && input.files && input.files.length > 0) {
+                removeBtn.classList.remove('hidden');
+            } else {
+                clearFileSelection(type);
+            }
+        }
+
+        function clearFileSelection(type) {
+            const input = document.getElementById(type === 'browser' ? 'browserFile' : 'emailFile');
+            const removeBtn = document.getElementById(type === 'browser' ? 'removeBrowserFileBtn' : 'removeEmailFileBtn');
+            
+            if (input) input.value = '';
+            if (removeBtn) removeBtn.classList.add('hidden');
+
+            const integrityCard = document.getElementById('integrityVerificationCard');
+            if (integrityCard) integrityCard.classList.add('hidden');
+
+            if (type === 'browser') {
+                currentFileName = '';
+                currentSha = '';
+                currentBrowserScore = 0.0;
+                
+                const bContainer = document.getElementById('liveExtensionContainer');
+                if (bContainer) bContainer.classList.add('hidden');
+                const bResults = document.getElementById('browserResults');
+                if (bResults) bResults.innerHTML = '';
+                
+                renderBrowserChart([0, 0, 0]);
+            } else {
+                currentFileName = '';
+                currentSha = '';
+                currentEmailScore = 0.0;
+                
+                const eContainer = document.getElementById('emailResultsContainer');
+                if (eContainer) eContainer.classList.add('hidden');
+                const eBox = document.getElementById('emailBox');
+                if (eBox) eBox.innerHTML = '';
+                
+                renderEmailChart(['Credential Harvest', 'Urgent Coercion', 'Domain Spoofing', 'Suspicious Links', 'Financial Pretext'], [0, 0, 0, 0, 0]);
+            }
+        }
+
+        function showIntegrityCard(fileName, hash) {
+            const card = document.getElementById('integrityVerificationCard');
+            document.getElementById('integrityFileName').innerText = fileName;
+            document.getElementById('integrityHash').innerText = hash;
+            document.getElementById('integrityTimestamp').innerText = new Date().toUTCString();
+            card.classList.remove('hidden');
+        }
+
+        function switchAuthTab(type) {
+            if (type === 'login') {
+                document.getElementById('loginForm').classList.remove('hidden');
+                document.getElementById('regForm').classList.add('hidden');
+                document.getElementById('tabLoginBtn').className = "flex-1 py-2 text-xs font-bold rounded-xl bg-white text-[#2B3A67] shadow-sm transition";
+                document.getElementById('tabRegBtn').className = "flex-1 py-2 text-xs font-bold rounded-xl text-slate-500 hover:text-slate-700 transition";
+            } else {
+                document.getElementById('loginForm').classList.add('hidden');
+                document.getElementById('regForm').classList.remove('hidden');
+                document.getElementById('tabRegBtn').className = "flex-1 py-2 text-xs font-bold rounded-xl bg-white text-[#2B3A67] shadow-sm transition";
+                document.getElementById('tabLoginBtn').className = "flex-1 py-2 text-xs font-bold rounded-xl text-slate-500 hover:text-slate-700 transition";
+            }
+        }
+
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const userVal = document.getElementById('loginUser').value.trim();
+            const passVal = document.getElementById('loginPass').value.trim();
+
+            if (!userVal || !passVal) {
+                alert("Please enter both username and password.");
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('username', userVal);
+            formData.append('password', passVal);
+
+            try {
+                const res = await fetch('/api/login', { method: 'POST', body: formData });
+                if (res.ok) {
+                    currentUser = await res.json();
+                    currentUser.username = userVal;
+
+                    document.getElementById('authView').classList.add('hidden');
+                    document.getElementById('appView').classList.remove('hidden');
+                    document.getElementById('userFullName').innerText = currentUser.full_name;
+                    document.getElementById('userBadge').innerText = `Badge: ${currentUser.badge_id}`;
+                    resetAllCharts();
+                    loadCases();
+                } else {
+                    alert('Authentication Failed: Invalid username or password.');
+                }
+            } catch (err) {
+                alert('Server connection error: ' + err.message);
+            }
+        });
+
+        document.getElementById('regForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData();
+            formData.append('username', document.getElementById('regUser').value.trim());
+            formData.append('password', document.getElementById('regPass').value.trim());
+            formData.append('name', document.getElementById('regName').value.trim());
+            formData.append('badge', document.getElementById('regBadge').value.trim());
+            formData.append('dept', document.getElementById('regDept').value);
+            
+            try {
+                const res = await fetch('/api/register', { method: 'POST', body: formData });
+                if (res.ok) { 
+                    alert('Registered successfully!'); 
+                    switchAuthTab('login'); 
+                } else { 
+                    alert('Registration failed: Username may already exist.'); 
+                }
+            } catch (err) {
+                alert('Error registering: ' + err.message);
+            }
+        });
+
+        async function loadCases() {
+            try {
+                const res = await fetch(`/api/cases/${currentUser.username}`);
+                const cases = await res.json();
+                const select = document.getElementById('caseSelect');
+                select.innerHTML = '<option value="">Select Active Case...</option>' + cases.map(c => `<option value="${c.id}">${c.id} - ${c.title}</option>`).join('');
+            } catch (err) {
+                console.error("Error loading cases:", err);
+            }
+        }
+
+        document.getElementById('createCaseInlineForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData();
+            formData.append('case_id', document.getElementById('inlineCaseId').value.trim());
+            formData.append('title', document.getElementById('inlineCaseTitle').value.trim());
+            formData.append('suspect', document.getElementById('inlineCaseSuspect').value.trim());
+            formData.append('username', currentUser.username);
+
+            try {
+                const res = await fetch('/api/cases/create', { method: 'POST', body: formData });
+                if (res.ok) { 
+                    alert('✅ Case Initialized & Armed Successfully!');
+                    const createdId = document.getElementById('inlineCaseId').value.trim();
+                    document.getElementById('inlineCaseId').value = '';
+                    document.getElementById('inlineCaseTitle').value = '';
+                    document.getElementById('inlineCaseSuspect').value = '';
+                    document.getElementById('inlineCaseDesc').value = '';
+                    await loadCases();
+                    document.getElementById('caseSelect').value = createdId;
+                    onCaseSelect();
+                } else { 
+                    alert('Case ID already exists.'); 
+                }
+            } catch (err) {
+                alert('Error creating case: ' + err.message);
+            }
+        });
+
+        async function onCaseSelect() {
+            activeCase = document.getElementById('caseSelect').value;
+            document.getElementById('kpiCase').innerText = activeCase || 'Overview';
+            clearFileSelection('browser');
+            clearFileSelection('email');
+            if (activeCase) {
+                loadReports();
+            }
+        }
+
+        async function parseBrowser() {
+            const file = document.getElementById('browserFile').files[0];
+            if (!file) return alert('Select history file first!');
+            currentFileName = file.name;
+            const data = new FormData();
+            data.append('file', file);
+
+            try {
+                const res = await fetch('/api/parse/browser', { method: 'POST', body: data });
+                const json = await res.json();
+                currentSha = json.sha256;
+                currentBrowserScore = json.high_risk_count > 0 ? 65.0 : 0.0;
+                currentDetailsJson = JSON.stringify(json);
+
+                showIntegrityCard(currentFileName, currentSha);
+                renderBrowserChart([json.high_risk_count || 0, json.med_risk_count || 0, json.low_risk_count || 0]);
+                parseBrowserExtensionResponse(json);
+            } catch (err) {
+                alert('Failed to parse browser database: ' + err.message);
+            }
+        }
+
+        async function parseEmail() {
+            const file = document.getElementById('emailFile').files[0];
+            if (!file) return alert('Select .EML file first!');
+            currentFileName = file.name;
+            const data = new FormData();
+            data.append('file', file);
+
+            try {
+                const res = await fetch('/api/parse/email', { method: 'POST', body: data });
+                if (!res.ok) {
+                    const errText = await res.text();
+                    console.error("Backend Error:", errText);
+                    return alert("Failed to parse email. Check server console.");
+                }
+
+                const json = await res.json();
+                console.log("Parsed email output:", json);
+
+                currentSha = json.sha256 || 'N/A';
+                currentEmailScore = json.score || 0.0;
+                currentDetailsJson = JSON.stringify(json);
+
+                showIntegrityCard(currentFileName, currentSha);
+
+                const container = document.getElementById('emailResultsContainer');
+                const box = document.getElementById('emailBox');
+                container.classList.remove('hidden');
+
+                const score = json.score || 0;
+                const statusBg = score >= 60 ? 'bg-red-50 border-red-200 text-red-800' : 
+                                (score >= 30 ? 'bg-amber-50 border-amber-200 text-amber-800' : 'bg-slate-50 border-slate-200 text-slate-800');
+                                   
+                let html = `
+                    <div class="p-5 rounded-2xl border ${statusBg}">
+                        <div class="flex justify-between items-center mb-3">
+                            <span class="font-extrabold text-sm text-[#2B3A67]">Threat Risk Level: ${score}% (${json.severity || 'LOW'})</span>
+                            <span class="text-[11px] font-mono bg-white px-2.5 py-1 rounded-lg text-slate-600 border border-slate-200">SHA-256: ${(json.sha256 || '').substring(0, 16)}...</span>
+                        </div>
+                        <div class="grid grid-cols-3 gap-2 text-xs bg-white p-3 rounded-xl border border-slate-200/60 mb-3">
+                            <div><b class="text-slate-400">From:</b> <span class="text-slate-800">${json.from || 'Unknown'}</span></div>
+                            <div><b class="text-slate-400">Subject:</b> <span class="text-slate-800">${json.subject || 'No Subject'}</span></div>
+                            <div><b class="text-slate-400">Date:</b> <span class="text-slate-800">${json.date || 'N/A'}</span></div>
+                        </div>
+                        <div class="text-xs mb-2"><b class="text-slate-400">Analysis Rationale:</b> ${json.rationale || 'Clean'}</div>
+                `;
+
+                const flags = Array.isArray(json.flags) ? json.flags : [];
+                if (flags.length > 0) {
+                    html += `<div class="mt-2 text-xs text-slate-700"><b class="text-slate-400">Threat Indicators:</b> ${flags.join(', ')}</div>`;
+                }
+
+                const remediation = Array.isArray(json.remediation) ? json.remediation : [];
+                if (remediation.length > 0) {
+                    html += `
+                        <div class="mt-4 pt-3 border-t border-slate-200 text-xs">
+                            <b class="text-[#FF6B50] uppercase tracking-wide">🚨 Incident Response Playbook Actions:</b>
+                            <ul class="list-disc pl-5 mt-1.5 space-y-1 text-slate-700">
+                                ${remediation.map(step => `<li>${step}</li>`).join('')}
+                            </ul>
+                        </div>
+                    `;
+                }
+
+                html += `</div>`;
+                box.innerHTML = html;
+
+                // Render dynamic vector breakdown for this specific email
+                const emailVectors = [0, 0, 0, 0, 0];
+                const flagsStr = flags.join(' ').toLowerCase();
+                const rationaleStr = (json.rationale || '').toLowerCase();
+
+                if (flagsStr.includes('credential') || rationaleStr.includes('credential') || flagsStr.includes('login') || flagsStr.includes('password')) emailVectors[0] += 1;
+                if (flagsStr.includes('urgency') || rationaleStr.includes('urgency') || flagsStr.includes('suspend') || flagsStr.includes('action required')) emailVectors[1] += 1;
+                if (flagsStr.includes('spoof') || rationaleStr.includes('spoof') || flagsStr.includes('domain')) emailVectors[2] += 1;
+                if (flagsStr.includes('url') || flagsStr.includes('link') || flagsStr.includes('ip') || (json.urls_found && json.urls_found.length > 0)) emailVectors[3] += (json.urls_found ? json.urls_found.length : 1);
+                if (flagsStr.includes('invoice') || rationaleStr.includes('invoice') || flagsStr.includes('payment') || flagsStr.includes('financial')) emailVectors[4] += 1;
+
+                renderEmailChart(['Credential Harvest', 'Urgent Coercion', 'Domain Spoofing', 'Suspicious Links', 'Financial Pretext'], emailVectors);
+
+            } catch (err) {
+                console.error("Network / Parsing error:", err);
+                alert("Upload failed: " + err.message);
+            }
+        }
+
+        function parseBrowserExtensionResponse(json) {
+            const container = document.getElementById('liveExtensionContainer');
+            const resultsDiv = document.getElementById('browserResults');
+            
+            if (!container || !resultsDiv) return;
+            container.classList.remove('hidden');
+            
+            let html = `
+                <div class="mb-4 p-4 bg-[#2B3A67] text-white rounded-2xl flex justify-between items-center shadow-sm">
+                    <div>
+                        <div class="font-extrabold text-sm text-[#FF6B50]">⚡ Ingest Stream Complete</div>
+                        <div class="text-xs text-slate-300">Total Scanned: <b class="text-white">${json.total_scanned || (json.analyzed_items ? json.analyzed_items.length : 0)} URLs</b></div>
+                    </div>
+                    <div class="text-xs font-bold px-3 py-1.5 rounded-xl ${json.high_risk_count > 0 ? 'bg-red-500/20 text-red-300 border border-red-400/30' : 'bg-white/10 text-white'}">
+                        Flagged Links: ${json.high_risk_count || 0}
+                    </div>
+                </div>
+
+                <h4 class="font-bold text-[11px] text-slate-400 uppercase tracking-wider mb-2">Detailed Per-URL Forensic Breakdown</h4>
+                <div class="overflow-x-auto max-h-60 mb-4 border border-slate-200 rounded-2xl">
+                    <table class="w-full text-left text-xs text-slate-700">
+                        <thead class="bg-slate-50 font-bold text-slate-400 uppercase text-[10px]">
+                            <tr>
+                                <th class="p-2.5">URL / Title</th>
+                                <th class="p-2.5">Risk Level</th>
+                                <th class="p-2.5">Threat Indicators</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100">
+            `;
+
+            if (json.analyzed_items && json.analyzed_items.length > 0) {
+                json.analyzed_items.forEach(item => {
+                    const badgeColor = item.score >= 60 ? 'bg-red-100 text-red-700' : 
+                                      (item.score >= 30 ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-600');
+                                      
+                    html += `
+                        <tr class="hover:bg-slate-50 transition">
+                            <td class="p-2.5"><div class="font-bold text-slate-800 truncate max-w-xs">${item.title || 'Untitled'}</div><div class="text-slate-400 font-mono text-[11px] truncate max-w-xs">${item.url}</div></td>
+                            <td class="p-2.5"><span class="px-2 py-0.5 rounded-lg font-bold text-[11px] ${badgeColor}">${item.score}% (${item.severity})</span></td>
+                            <td class="p-2.5 font-mono text-slate-500">${item.flags.join(', ') || 'CLEAN'}</td>
+                        </tr>
+                    `;
+                });
+            } else {
+                html += `<tr><td colspan="3" class="p-4 text-center text-slate-400">No active history items parsed.</td></tr>`;
+            }
+
+            html += `</tbody></table></div>`;
+            resultsDiv.innerHTML = html;
+        }
+
+        async function commitEvidence(type, score) {
+            if (!activeCase) return alert('Select an active case file first!');
+            const data = new FormData();
+            data.append('case_id', activeCase);
+            data.append('file_name', currentFileName || 'Artifact_Stream.dat');
+            data.append('sha256', currentSha || 'sha256_placeholder');
+            data.append('artifact_type', type);
+            data.append('score', score);
+            data.append('details', currentDetailsJson);
+
+            try {
+                const res = await fetch('/api/commit', { method: 'POST', body: data });
+                if (res.ok) { 
+                    alert('✅ Evidence committed to case directory!'); 
+                    
+                    // Reset scanner workspace back to clean default
+                    if (type.includes('Browser')) {
+                        clearFileSelection('browser');
+                    } else {
+                        clearFileSelection('email');
+                    }
+
+                    loadReports(); 
+                }
+            } catch (err) {
+                alert('Error committing evidence: ' + err.message);
+            }
+        }
+
+        async function loadReports() {
+            if (!activeCase) {
+                resetAllCharts();
+                return;
+            }
+            try {
+                const res = await fetch(`/api/reports/${activeCase}`);
+                const payload = await res.json();
+                
+                currentReportsList = payload.reports || [];
+                document.getElementById('kpiCount').innerText = currentReportsList.length;
+
+                // Reset selections on table load
+                deselectAllRows();
+
+                const tbody = document.getElementById('auditTable');
+                if (currentReportsList.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="6" class="p-8 text-center text-slate-400">No evidence committed to active case file.</td></tr>';
+                } else {
+                    tbody.innerHTML = currentReportsList.map((r, idx) => `
+                        <tr id="row-${idx}" 
+                            ondblclick="handleRowDblClick(event, '${r.sha256}', ${idx})" 
+                            onclick="handleRowSingleClick(event, '${r.sha256}', ${idx})"
+                            class="audit-row hover:bg-slate-50/80 cursor-pointer user-select-none transition border-b border-slate-100" 
+                            title="Double-click to select, single-click to deselect">
+                            <td class="p-3.5 font-bold text-slate-800 flex items-center gap-2">
+                                <span id="badge-${idx}" class="hidden text-xs font-black text-[#2B3A67]">✓</span>
+                                <span>${r.file}</span>
+                            </td>
+                            <td class="p-3.5 text-slate-600">${r.type}</td>
+                            <td class="p-3.5 font-mono text-[11px] text-slate-400">${r.sha256.substring(0, 16)}...</td>
+                            <td class="p-3.5 font-bold ${r.score > 50 ? 'text-[#FF6B50]' : 'text-slate-700'}">${r.score}%</td>
+                            <td class="p-3.5 text-slate-400 text-[11px]">${r.timestamp}</td>
+                            <td class="p-3.5 text-right" onclick="event.stopPropagation()">
+                                <button type="button" onclick="inspectReport(${idx})" class="py-1 px-3 bg-white text-[#4F46E5] border border-slate-200 hover:bg-slate-50 rounded-xl font-bold text-xs shadow-sm transition">👁️ View Findings</button>
+                            </td>
+                        </tr>
+                    `).join('');
+                }
+            } catch (err) {
+                console.error("Error loading reports:", err);
+            }
+        }
+
+        // Selection Interaction Handlers
+        function handleRowDblClick(event, hash, idx) {
+            event.stopPropagation();
+            if (!selectedRecordHashes.has(hash)) {
+                selectRow(hash, idx);
+            }
+        }
+
+        function handleRowSingleClick(event, hash, idx) {
+            event.stopPropagation();
+            if (selectedRecordHashes.has(hash)) {
+                deselectRow(hash, idx);
+            }
+        }
+
+        function selectRow(hash, idx) {
+            selectedRecordHashes.add(hash);
+            const row = document.getElementById(`row-${idx}`);
+            const badge = document.getElementById(`badge-${idx}`);
+            if (row) row.classList.add('row-selected');
+            if (badge) badge.classList.remove('hidden');
+            updateDeleteButtonVisibility();
+        }
+
+        function deselectRow(hash, idx) {
+            selectedRecordHashes.delete(hash);
+            const row = document.getElementById(`row-${idx}`);
+            const badge = document.getElementById(`badge-${idx}`);
+            if (row) row.classList.remove('row-selected');
+            if (badge) badge.classList.add('hidden');
+            updateDeleteButtonVisibility();
+        }
+
+        function deselectAllRows() {
+            selectedRecordHashes.clear();
+            document.querySelectorAll('.audit-row').forEach(row => {
+                row.classList.remove('row-selected');
+            });
+            document.querySelectorAll('[id^="badge-"]').forEach(badge => {
+                badge.classList.add('hidden');
+            });
+            updateDeleteButtonVisibility();
+        }
+
+        // Click outside table rows clears all selections
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.audit-row') && !e.target.closest('#deleteSelectedBtn')) {
+                if (selectedRecordHashes.size > 0) {
+                    deselectAllRows();
+                }
+            }
+        });
+
+        function updateDeleteButtonVisibility() {
+            const deleteBtn = document.getElementById('deleteSelectedBtn');
+            if (!deleteBtn) return;
+
+            if (selectedRecordHashes.size > 0) {
+                deleteBtn.innerText = `🗑️ Delete Selected (${selectedRecordHashes.size})`;
+                deleteBtn.classList.remove('hidden');
+            } else {
+                deleteBtn.classList.add('hidden');
+            }
+        }
+
+        async function deleteSelectedRows() {
+            if (!activeCase) return alert('Select an active case file first!');
+            if (selectedRecordHashes.size === 0) return alert('Double-click a row first to select it.');
+
+            if (!confirm(`Delete ${selectedRecordHashes.size} selected item(s)?`)) return;
+
+            try {
+                const res = await fetch('/api/reports/delete-selected', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ case_id: activeCase, hashes: Array.from(selectedRecordHashes) })
+                });
+
+                if (res.ok) { 
+                    loadReports(); 
+                } else { 
+                    alert('Failed to delete selected records.'); 
+                }
+            } catch (err) {
+                alert('Error deleting records: ' + err.message);
+            }
+        }
+
+        function inspectReport(index) {
+            const r = currentReportsList[index];
+            if (!r) return;
+
+            const content = document.getElementById('inspectContent');
+            let innerHtml = `
+                <div class="bg-[#2B3A67] text-white p-4 rounded-2xl mb-3">
+                    <div class="font-bold text-sm text-[#FF6B50]">${r.file}</div>
+                    <div class="text-xs text-slate-300 mt-0.5">Artifact Type: <b class="text-white">${r.type}</b> | Case File: <b class="text-white">${activeCase}</b></div>
+                    <div class="text-xs text-slate-400 font-mono mt-1">SHA-256 Digest: ${r.sha256}</div>
+                </div>
+            `;
+
+            if (r.details) {
+                try {
+                    const detailsObj = JSON.parse(r.details);
+                    if (detailsObj.analyzed_items && detailsObj.analyzed_items.length > 0) {
+                        innerHtml += `
+                            <h4 class="font-bold text-[11px] text-slate-400 uppercase tracking-wider mb-2">Item-by-Item Granular Breakdown (${detailsObj.analyzed_items.length} Scanned)</h4>
+                            <div class="overflow-x-auto max-h-60 mb-3 border border-slate-200 rounded-2xl">
+                                <table class="w-full text-left text-xs text-slate-700">
+                                    <thead class="bg-slate-50 font-bold text-slate-400 uppercase text-[10px]">
+                                        <tr><th class="p-2">URL / Title</th><th class="p-2">Risk</th><th class="p-2">Indicators</th></tr>
+                                    </thead>
+                                    <tbody class="divide-y divide-slate-100">
+                        `;
+                        detailsObj.analyzed_items.forEach(item => {
+                            const badge = item.score >= 60 ? 'bg-red-100 text-red-700' : (item.score >= 30 ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-600');
+                            innerHtml += `
+                                <tr class="hover:bg-slate-50 transition">
+                                    <td class="p-2"><div class="font-bold text-slate-800 truncate max-w-xs">${item.title || 'Untitled'}</div><div class="text-slate-400 font-mono text-[11px] truncate max-w-xs">${item.url}</div></td>
+                                    <td class="p-2"><span class="px-2 py-0.5 rounded-lg font-bold text-[11px] ${badge}">${item.score}%</span></td>
+                                    <td class="p-2 font-mono text-slate-500">${item.flags.join(', ') || 'CLEAN'}</td>
+                                </tr>
+                            `;
+                        });
+                        innerHtml += `</tbody></table></div>`;
+                    } else if (detailsObj.from) {
+                        innerHtml += `
+                            <div class="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-2 text-slate-700">
+                                <div><b class="text-slate-400">From:</b> ${detailsObj.from}</div>
+                                <div><b class="text-slate-400">Subject:</b> ${detailsObj.subject}</div>
+                                <div><b class="text-slate-400">Rationale:</b> ${detailsObj.rationale}</div>
+                                <div><b class="text-slate-400">Indicators:</b> <span class="font-mono text-[#4F46E5]">${detailsObj.flags ? detailsObj.flags.join(', ') : 'None'}</span></div>
+                            </div>
+                        `;
+                    }
+                } catch (e) {
+                    innerHtml += `<div class="p-3 bg-slate-50 border border-slate-200 rounded-xl">Score: ${r.score}% | Timestamp: ${r.timestamp}</div>`;
+                }
+            } else {
+                innerHtml += `
+                    <div class="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-2">
+                        <div><b>Threat Risk Level:</b> <span class="font-bold ${r.score > 50 ? 'text-[#FF6B50]' : 'text-slate-700'}">${r.score}%</span></div>
+                        <div><b>Timestamp (UTC):</b> ${r.timestamp}</div>
+                        <div class="pt-2 border-t border-slate-200 text-slate-500">
+                            <b>Containment Recommendation:</b> ${r.score > 50 ? 'Immediate perimeter domain block & credential reset required.' : 'No active containment required.'}
+                        </div>
+                    </div>
+                `;
+            }
+
+            content.innerHTML = innerHtml;
+            toggleInspectModal(true);
+        }
+
+        function toggleInspectModal(show) { document.getElementById('inspectModal').classList.toggle('hidden', !show); }
+
+        async function clearAuditLog() {
+            if (!activeCase) return alert('Select an active case file first!');
+            if (!confirm(`Wipe ALL committed evidence for case ${activeCase}?`)) return;
+
+            try {
+                const res = await fetch(`/api/reports/clear/${activeCase}`, { method: 'DELETE' });
+                if (res.ok) { 
+                    loadReports(); 
+                } else { 
+                    alert('Failed to clear directory.'); 
+                }
+            } catch (err) {
+                alert('Error clearing directory: ' + err.message);
+            }
+        }
+
+        function downloadPDF() {
+            if (!activeCase) return alert('Select an active case file first!');
+            window.open(`/api/reports/pdf/${activeCase}`, '_blank');
+        }
+
+        function resetAllCharts() {
+            renderBrowserChart([0, 0, 0]);
+            renderEmailChart(['Credential Harvest', 'Urgent Coercion', 'Domain Spoofing', 'Suspicious Links', 'Financial Pretext'], [0, 0, 0, 0, 0]);
+        }
+
+        function renderBrowserChart(data = [0, 0, 0]) {
+            const canvas = document.getElementById('browserRiskChart');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            if (browserChartInstance) browserChartInstance.destroy();
+
+            const isAllZero = data.every(v => v === 0);
+
+            browserChartInstance = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: isAllZero ? ['No Data Recorded'] : ['High Risk', 'Medium Risk', 'Safe / Clean'],
+                    datasets: [{
+                        data: isAllZero ? [1] : data,
+                        backgroundColor: isAllZero 
+                            ? ['#E2E8F0'] 
+                            : ['#EF4444', '#F59E0B', '#10B981'],
+                        borderWidth: 2,
+                        borderColor: '#FFFFFF'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: { font: { family: 'Plus Jakarta Sans', size: 10, weight: '600' }, color: '#64748B' }
+                        }
+                    },
+                    cutout: '70%'
+                }
+            });
+        }
+
+        function renderEmailChart(labels, data) {
+            const canvas = document.getElementById('emailVectorChart');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            if (emailChartInstance) emailChartInstance.destroy();
+
+            emailChartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Detections',
+                        data: data,
+                        backgroundColor: '#FF6B50',
+                        borderRadius: 8,
+                        hoverBackgroundColor: '#ff5738'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: {
+                            grid: { display: false },
+                            ticks: { color: '#64748B', font: { family: 'Plus Jakarta Sans', size: 10, weight: '600' } }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            grid: { color: '#F1F5F9' },
+                            ticks: { color: '#94A3B8', stepSize: 1, font: { family: 'Plus Jakarta Sans', size: 10 } }
+                        }
+                    }
+                }
+            });
+        }
+
+        function logout() { location.reload(); }
+    </script>
+</body>
+</html>
